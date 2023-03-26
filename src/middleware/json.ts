@@ -1,4 +1,7 @@
-export async function jsonMiddleware(req, res) {
+import { IncomingMessage, ServerResponse } from "node:http";
+import { Req } from "../server";
+
+export async function jsonMiddleware(req: Req, res: ServerResponse<IncomingMessage>) {
   const buffers = [];
 
   for await (const chunk of req) {

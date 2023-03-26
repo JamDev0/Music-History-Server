@@ -1,4 +1,4 @@
-export function sort(arrayToSort, sortBy, order) {
+export function sort<ArrayType>(arrayToSort: any[], sortBy: keyof ArrayType, order: "ASC" | "DESC") {
   return arrayToSort.sort((a, b) => {
     if(a[sortBy] > b[sortBy]) {
       return order === "DESC" ? -1 : 1;

@@ -1,8 +1,14 @@
-import http from "node:http";
+import http, { IncomingMessage } from "node:http";
 import { jsonMiddleware } from "./middleware/json.js";
 import { routes } from "./routes.js";
 
-const server = http.createServer(async (req, res) => {
+export interface Req extends IncomingMessage {
+  body: any;
+  parms: any;
+}
+
+//@ts-ignore
+const server = http.createServer(async (req: Req, res) => {
   const { method, url: route, headers: { host } } = req;
 
   const url = new URL(`http://${host}${route}`);
@@ -14,11 +20,9 @@ const server = http.createServer(async (req, res) => {
   if(currentRoute) {
     await jsonMiddleware(req, res);
 
-    const routeParms = url.pathname.match(currentRoute.path).groups;
+    const routeParms = url.pathname.match(currentRoute.path)?.groups;
 
     req.parms = { ...routeParms }
-
-    console.log({currentRoute})
 
     return currentRoute.handler(req, res);
   }

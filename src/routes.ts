@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { IncomingMessage, ServerResponse } from "node:http";
+import { Req } from "./server.js";
 import { Database } from "./services/database.js";
 import { buildRoutePath } from "./utils/buildRoutePath.js";
 import { sort } from "./utils/sort.js";
@@ -13,13 +15,19 @@ const musicsSearchParams = ["artist", "name", "duration", "duration_higher_than"
 
 const historySearchParams = ["date", "music_id", "listened_for_more_than", "listened_for_less_than", "sort_by", "order", "id"];
 
-export const routes = [
+interface Route {
+  path: RegExp;
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  handler: (req: Req, res: ServerResponse<IncomingMessage>) => ServerResponse<IncomingMessage>
+} 
+
+export const routes: Route[] = [
   {
     path: buildRoutePath("/musics"),
     method: "POST",
     handler: (req, res) => {
       if(!req.body) {
-        return res.writeHeader(400).end(JSON.stringify({ message: "Body is missing" }));
+        return res.writeHead(400).end(JSON.stringify({ message: "Body is missing" }));
       }
 
       const parsedBody = JSON.parse(req.body);
@@ -33,12 +41,12 @@ export const routes = [
       }, true);
 
       if(!isBodyRight) {
-        return res.writeHeader(400).end(JSON.stringify({ message: "Body is missing property" }));
+        return res.writeHead(400).end(JSON.stringify({ message: "Body is missing property" }));
       }
 
       database.insert("musics", {...parsedBody, "id": randomUUID()});
       
-      return res.writeHeader(201).end();
+      return res.writeHead(201).end();
     }
   },
   {
@@ -62,10 +70,10 @@ export const routes = [
           }
 
           return (acc && true);
-        }, [true])
+        }, true)
 
         if(isThereAInvalidSearchParam) {
-          return res.writeHeader(400).end(JSON.stringify({ message: `Invalid search param` }));
+          return res.writeHead(400).end(JSON.stringify({ message: `Invalid search param` }));
         }
 
         const filteredMusics = musics.filter(music => {
@@ -84,7 +92,7 @@ export const routes = [
               }
               
               if(key === "duration") {
-                return acc && ( Math.abs(searchParams["duration"] - music.duration) < 10 );
+                return acc && ( Math.abs(Number(searchParams["duration"]) - music.duration) < 10 );
               }
 
               if(key === "id") {
@@ -101,15 +109,15 @@ export const routes = [
         const { sort_by, order } = searchParams;
 
         if(sort_by) {
-          const sortedMusics = sort(filteredMusics, sort_by, order);
+          const sortedMusics = sort(filteredMusics, sort_by, order as "ASC" | "DESC");
 
-          return res.writeHeader(200).end(JSON.stringify(sortedMusics));
+          return res.writeHead(200).end(JSON.stringify(sortedMusics));
         }
 
-        return res.writeHeader(200).end(JSON.stringify(filteredMusics));
+        return res.writeHead(200).end(JSON.stringify(filteredMusics));
       }
 
-      return res.writeHeader(200).end(JSON.stringify(musics));
+      return res.writeHead(200).end(JSON.stringify(musics));
     }
   },
   {
@@ -118,14 +126,14 @@ export const routes = [
     handler: (req, res) => {
       const musics = database.select("musics");
 
-      const music = musics.find(entry => entry.id === req.parms.id)
+      const music = musics.find((entry: any) => entry.id === req.parms.id)
 
       const ok = !!music;
 
       if(ok) {
-        return res.writeHeader(200).end(JSON.stringify(music));
+        return res.writeHead(200).end(JSON.stringify(music));
       } else {
-        return res.writeHeader(404).end(JSON.stringify({ message: "No music was found with the given id." }));
+        return res.writeHead(404).end(JSON.stringify({ message: "No music was found with the given id." }));
       }
     }
   },
@@ -136,9 +144,9 @@ export const routes = [
       const { ok } = database.delete("musics", req.parms.id);
 
       if(ok) {
-        return res.writeHeader(200).end();
+        return res.writeHead(200).end();
       } else {
-        return res.writeHeader(404).end(JSON.stringify({ message: "No music was found with the given id." }));
+        return res.writeHead(404).end(JSON.stringify({ message: "No music was found with the given id." }));
       }
     }
   },
@@ -155,9 +163,9 @@ export const routes = [
       if(ok) {
         const plays = music.reproductions.length;
 
-        return res.writeHeader(200).end(JSON.stringify({ plays: plays }));
+        return res.writeHead(200).end(JSON.stringify({ plays: plays }));
       } else {
-        return res.writeHeader(404).end(JSON.stringify({ message: "No history entry was found with the given id." }));
+        return res.writeHead(404).end(JSON.stringify({ message: "No history entry was found with the given id." }));
       }
     }
   },
@@ -168,16 +176,16 @@ export const routes = [
       const { history_id, music_id } = req.body;
 
       if(!history_id || !music_id) {
-        return res.writeHeader(400).end(JSON.stringify({ message: "Body is missing property" }))
+        return res.writeHead(400).end(JSON.stringify({ message: "Body is missing property" }))
       }
 
       const { ok } = database.patch("push", "musics", music_id, "reproductions", history_id);
 
       if(ok) {
-        return res.writeHeader(200).end();
+        return res.writeHead(200).end();
       }
 
-      return res.writeHeader(404).end(JSON.stringify({ message: "No music was found with the given id." }));
+      return res.writeHead(404).end(JSON.stringify({ message: "No music was found with the given id." }));
     }
   },
   {
@@ -185,7 +193,7 @@ export const routes = [
     method: "POST",
     handler: (req, res) => {
       if(!req.body) {
-        return res.writeHeader(400).end(JSON.stringify({ message: "Body is missing" }));
+        return res.writeHead(400).end(JSON.stringify({ message: "Body is missing" }));
       }
       
       const parsedBody = JSON.parse(req.body);
@@ -199,7 +207,7 @@ export const routes = [
       }, true);
 
       if(!isBodyRight) {
-        return res.writeHeader(400).end(JSON.stringify({ message: "Body is missing property" }));
+        return res.writeHead(400).end(JSON.stringify({ message: "Body is missing property" }));
       }
 
       const entryId = randomUUID();
@@ -213,10 +221,10 @@ export const routes = [
       const { ok } = database.patch("push", "musics", music_id, "reproductions", entryId);
 
       if(ok) {
-        return res.writeHeader(201).end();
+        return res.writeHead(201).end();
       }
 
-      return res.writeHeader(404).end(JSON.stringify({ message: "No music was found with the given id." }));
+      return res.writeHead(404).end(JSON.stringify({ message: "No music was found with the given id." }));
     }
   },
   {
@@ -240,10 +248,10 @@ export const routes = [
           }
 
           return (acc && true);
-        }, [true])
+        }, true)
 
         if(isThereAInvalidSearchParam) {
-          return res.writeHeader(400).end(JSON.stringify({ message: `Invalid search param` }));
+          return res.writeHead(400).end(JSON.stringify({ message: `Invalid search param` }));
         }
 
         const filteredHistory = history.filter(entry => {
@@ -279,15 +287,15 @@ export const routes = [
         const { sort_by, order } = searchParams;
 
         if(sort_by) {
-          const sortedHistory = sort(filteredHistory, sort_by, order);
+          const sortedHistory = sort(filteredHistory, sort_by, order as "ASC" | "DESC");
 
-          return res.writeHeader(200).end(JSON.stringify(sortedHistory));
+          return res.writeHead(200).end(JSON.stringify(sortedHistory));
         }
 
-        return res.writeHeader(200).end(JSON.stringify(filteredHistory));
+        return res.writeHead(200).end(JSON.stringify(filteredHistory));
       }
 
-      return res.writeHeader(200).end(JSON.stringify(history));
+      return res.writeHead(200).end(JSON.stringify(history));
     }
   },
   {
@@ -301,9 +309,9 @@ export const routes = [
       const ok = !!historyEntry;
 
       if(ok) {
-        return res.writeHeader(200).end(JSON.stringify(historyEntry));
+        return res.writeHead(200).end(JSON.stringify(historyEntry));
       } else {
-        return res.writeHeader(404).end(JSON.stringify({ message: "No history entry was found with the given id." }));
+        return res.writeHead(404).end(JSON.stringify({ message: "No history entry was found with the given id." }));
       }
     }
   },
@@ -314,9 +322,9 @@ export const routes = [
       const { ok } = database.delete("history", req.parms.id);
 
       if(ok) {
-        return res.writeHeader(200).end();
+        return res.writeHead(200).end();
       } else {
-        return res.writeHeader(404).end(JSON.stringify({ message: "No history entry was found with the given id." }));
+        return res.writeHead(404).end(JSON.stringify({ message: "No history entry was found with the given id." }));
       }
     }
   }
