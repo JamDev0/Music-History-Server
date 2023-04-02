@@ -3,4 +3,5 @@ export interface Music {
   name: string;
   duration: number;
   id: string;
+  reproductions: string;
 }
