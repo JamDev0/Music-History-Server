@@ -3,7 +3,7 @@ import { Entry, Music } from '../entities';
 
 declare module 'knex/types/table' {
   export interface Tables {
-    Musics: Music;
-    History: Entry;
+    musics: Music;
+    history: Entry;
   }
 }
