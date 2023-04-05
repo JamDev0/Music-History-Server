@@ -5,3 +5,9 @@ export interface Music {
   id: string;
   reproductions: string;
 }
+
+export interface Entry {
+  date: string;
+  music: string;
+  time: string;
+}
