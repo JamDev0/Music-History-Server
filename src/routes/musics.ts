@@ -21,7 +21,7 @@ export async function musicsRoutes(server: FastifyInstance) {
 
     const body = createMusicBodySchema.parse(req.body);
   
-    const newMusicId = (await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])} as Music))[0];
+    const newMusicId = await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])} as Music).first();
   
     if(newMusicId) {
       return res.status(200).send(newMusicId);
@@ -106,7 +106,7 @@ export async function musicsRoutes(server: FastifyInstance) {
     
     const { id } = routParams.parse(req.params);
   
-    const music = (await knex('musics').where('id', id))[0] as Music;
+    const music = await knex('musics').where('id', id).first();
   
     if(Object.keys(music).length === 0) {
       return res.code(400).send(`No music found with id: ${id}`);

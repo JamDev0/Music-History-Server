@@ -20,7 +20,7 @@ export async function historyRoutes(server: FastifyInstance) {
 
     const body = historyBodySchema.parse(req.body);
   
-    const newMusicId = (await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])}))[0];
+    const newMusicId = await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])}).first();
   
     if(newMusicId) {
       return res.status(200).send(newMusicId);
