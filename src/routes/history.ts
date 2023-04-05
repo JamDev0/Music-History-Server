@@ -1,10 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { Music } from '../entities';
+import zod from 'zod';
 import { knex } from '../services/database';
-import { areThereWrongQueries } from '../utils/areThereWrongQueries';
 import { filterArrayBySearchParams } from '../utils/filterArrayBySearchParams';
-import { objectHasAllProperties } from '../utils/objectHasAllProperties';
 import { sort } from '../utils/sort';
 
 interface querySearchParams {
@@ -14,16 +12,15 @@ interface querySearchParams {
 
 export async function historyRoutes(server: FastifyInstance) {
   server.post('/', async (req, res) => {
-    const { body } = req;
+    const historyBodySchema = zod.object({
+      date: zod.string(),
+      music: zod.string(),
+      time: zod.object({ from: zod.number(), to: zod.number() })
+    });
+
+    const body = historyBodySchema.parse(req.body);
   
-    const isBodyRight = objectHasAllProperties<Omit<Music, 'id'>>(body, ['artist', 'duration', 'name']);
-    
-  
-    if(!isBodyRight) {
-      return res.status(400).send('Missing/wrong properties');
-    }
-  
-    const newMusicId = (await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])} as Music))[0];
+    const newMusicId = (await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])}))[0];
   
     if(newMusicId) {
       return res.status(200).send(newMusicId);
@@ -35,22 +32,23 @@ export async function historyRoutes(server: FastifyInstance) {
   server.get('/', async (req, res) => {
     const history = await knex('history');
   
-    const queries = req.query as (querySearchParams & Music);
-  
-    const queryKeys = Object.keys(queries as object);
+    const queryKeys = Object.keys(req.query as object);
   
     if(queryKeys.length > 0) {
-      const searchQueries: ((keyof (querySearchParams & Music)) | 'duration_lower_than' | 'duration_higher_than')[] = ['artist', 'duration', 'id', 'name', 'order', 'duration_lower_than', 'duration_higher_than'];
+      const queriesSchema = zod.object({
+        date: zod.string().nullish(),
+        music: zod.string().nullish(),
+        order: zod.enum(['ASC', 'DESC']).nullish(),
+        play_time_lower_than: zod.number().nullish(),
+        play_time_higher_than: zod.number().nullish(),
+        sort_by: zod.enum(['date', 'music', 'play_time']).nullish()
+      });
+
+      const query = queriesSchema.parse(req.query);
   
-      const wrongQueriesMessage = areThereWrongQueries(searchQueries, queryKeys);
+      const filteredHistory = filterArrayBySearchParams(history, query);
   
-      if(wrongQueriesMessage) {
-        return res.code(400).send(wrongQueriesMessage);
-      }
-  
-      const filteredHistory = filterArrayBySearchParams(history, queries);
-  
-      const { sort_by, order } = queries;
+      const { sort_by, order } = query;
       
       if(sort_by) {
         const sortedHistory = sort(filteredHistory, sort_by, order ?? 'ASC');
