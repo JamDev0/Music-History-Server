@@ -1,10 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
+import zod from 'zod';
 import { Music } from '../entities';
 import { knex } from '../services/database';
-import { areThereWrongQueries } from '../utils/areThereWrongQueries';
 import { filterArrayBySearchParams } from '../utils/filterArrayBySearchParams';
-import { objectHasAllProperties } from '../utils/objectHasAllProperties';
 import { sort } from '../utils/sort';
 
 interface querySearchParams {
@@ -13,15 +12,14 @@ interface querySearchParams {
 }
 
 export async function musicsRoutes(server: FastifyInstance) {
-  server.post('/musics', async (req, res) => {
-    const { body } = req;
-  
-    const isBodyRight = objectHasAllProperties<Omit<Music, 'id'>>(body, ['artist', 'duration', 'name']);
-    
-  
-    if(!isBodyRight) {
-      return res.status(400).send('Missing/wrong properties');
-    }
+  server.post('/', async (req, res) => {
+    const createMusicBodySchema = zod.object({
+      artist: zod.string(),
+      name: zod.string(),
+      duration: zod.number(),
+    });
+
+    const body = createMusicBodySchema.parse(req.body);
   
     const newMusicId = (await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])} as Music))[0];
   
@@ -33,29 +31,31 @@ export async function musicsRoutes(server: FastifyInstance) {
   });
   
   
-  server.patch('/musics', (req, res) => {
+  server.patch('/', (req, res) => {
   
   });
   
-  server.get('/musics', async (req, res) => {
+  server.get('/', async (req, res) => {
     const musics = await knex('musics');
-  
-    const queries = req.query as (querySearchParams & Music);
-  
-    const queryKeys = Object.keys(queries as object);
-  
+    
+    const queryKeys = Object.keys(req.query as object);
+    
     if(queryKeys.length > 0) {
-      const searchQueries: ((keyof (querySearchParams & Music)) | 'duration_lower_than' | 'duration_higher_than')[] = ['artist', 'duration', 'id', 'name', 'order', 'duration_lower_than', 'duration_higher_than'];
+      const queriesSchema = zod.object({
+        artist: zod.string().nullish(),
+        duration: zod.number().nullish(),
+        name: zod.string().nullish(),
+        order: zod.enum(['ASC', 'DESC']).nullish(),
+        duration_lower_than: zod.number().nullish(),
+        duration_higher_than: zod.number().nullish(),
+        sort_by: zod.enum(['artist', 'duration', 'id', 'name', 'duration_lower_than', 'duration_higher_than']).nullish()
+      });
+
+      const query = queriesSchema.parse(req.query);
   
-      const wrongQueriesMessage = areThereWrongQueries(searchQueries, queryKeys);
+      const filteredMusics = filterArrayBySearchParams(musics, query);
   
-      if(wrongQueriesMessage) {
-        return res.code(400).send(wrongQueriesMessage);
-      }
-  
-      const filteredMusics = filterArrayBySearchParams(musics, queries);
-  
-      const { sort_by, order } = queries;
+      const { sort_by, order } = query;
       
       if(sort_by) {
         const sortedMusics = sort(filteredMusics, sort_by, order ?? 'ASC');
@@ -69,12 +69,12 @@ export async function musicsRoutes(server: FastifyInstance) {
     return musics;
   });
   
-  server.get('/musics/:id', async (req, res) => {
-    const { id } = req.params;
-  
-    if(!id) {
-      return res.code(400).send('Id not provided');
-    }
+  server.get('/:id', async (req, res) => {
+    const routParams = zod.object({
+      id: zod.string(),
+    });
+    
+    const { id } = routParams.parse(req.params);
   
     const music = await knex('musics').where('id', id);
   
@@ -85,12 +85,12 @@ export async function musicsRoutes(server: FastifyInstance) {
     return music;
   });
   
-  server.delete('/musics/:id', (req, res) => {
-    const { id } = req.params;
-  
-    if(!id) {
-      return res.code(400).send('Id not provided');
-    }
+  server.delete('/:id', (req, res) => {
+    const routParams = zod.object({
+      id: zod.string(),
+    });
+    
+    const { id } = routParams.parse(req.params);
   
     const idk = knex('musics').where('id', id).delete();
     
@@ -99,12 +99,12 @@ export async function musicsRoutes(server: FastifyInstance) {
     return;
   });
   
-  server.get('/musics/:id/plays', async (req, res) => {
-    const { id } = req.params;
-  
-    if(!id) {
-      return res.code(400).send('Id not provided');
-    }
+  server.get('/:id/plays', async (req, res) => {
+    const routParams = zod.object({
+      id: zod.string(),
+    });
+    
+    const { id } = routParams.parse(req.params);
   
     const music = (await knex('musics').where('id', id))[0] as Music;
   
@@ -113,8 +113,6 @@ export async function musicsRoutes(server: FastifyInstance) {
     }
   
     const reproductions = JSON.parse(music.reproductions);
-  
-    console.log(reproductions);
   
     return reproductions.length;
   });
