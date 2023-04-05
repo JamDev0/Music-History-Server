@@ -19,8 +19,16 @@ export async function historyRoutes(server: FastifyInstance) {
     });
 
     const body = historyBodySchema.parse(req.body);
+
+    let sessionId = req.cookies['music-history.sessionId'];
+
+    if(!sessionId) {
+      sessionId = randomUUID();
+
+      res.cookie('music-history.sessionId', sessionId);
+    }
   
-    const newMusicId = await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])}).first();
+    const newMusicId = await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([]), sessionId}).first();
   
     if(newMusicId) {
       return res.status(200).send(newMusicId);
