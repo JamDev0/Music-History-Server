@@ -48,7 +48,7 @@ export async function musicsRoutes(server: FastifyInstance) {
         order: zod.enum(['ASC', 'DESC']).nullish(),
         duration_lower_than: zod.number().nullish(),
         duration_higher_than: zod.number().nullish(),
-        sort_by: zod.enum(['artist', 'duration', 'id', 'name', 'duration_lower_than', 'duration_higher_than']).nullish()
+        sort_by: zod.enum(['artist', 'duration', 'id', 'name', 'duration']).nullish()
       });
 
       const query = queriesSchema.parse(req.query);
