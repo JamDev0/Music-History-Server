@@ -10,6 +10,8 @@ interface querySearchParams {
   order?: 'DESC' | 'ASC';
 }
 
+const sessionIdSchema = zod.string().uuid();
+
 export async function historyRoutes(server: FastifyInstance) {
   server.post('/', async (req, res) => {
     const historyBodySchema = zod.object({
@@ -25,7 +27,10 @@ export async function historyRoutes(server: FastifyInstance) {
     if(!sessionId) {
       sessionId = randomUUID();
 
-      res.cookie('music-history.sessionId', sessionId);
+      res.cookie('music-history.sessionId', sessionId, {
+        maxAge: 1000 * 60 * 60 * 7, // 7 days
+        path: '/'
+      });
     }
   
     const newMusicId = await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([]), sessionId}).first();
@@ -38,7 +43,9 @@ export async function historyRoutes(server: FastifyInstance) {
   });
   
   server.get('/', async (req, res) => {
-    const history = await knex('history');
+    const sessionId = sessionIdSchema.parse(req.cookies['music-history.sessionId']);
+
+    const history = await knex('history').where('sessionId', sessionId);
   
     const queryKeys = Object.keys(req.query as object);
   
@@ -71,15 +78,17 @@ export async function historyRoutes(server: FastifyInstance) {
   });
   
   server.get('/:id', async (req, res) => {
+    const sessionId = sessionIdSchema.parse(req.cookies['music-history.sessionId']);
+
     const routParams = zod.object({
       id: zod.string().uuid(),
     });
     
     const { id } = routParams.parse(req.params);
   
-    const entry = await knex('musics').where('id', id);
+    const entry = await knex('musics').where({id, sessionId}).first();
   
-    if(entry.length === 0) {
+    if(Object.keys(entry).length === 0) {
       return res.code(400).send(`No entry found with id: ${id}`);
     }
   
