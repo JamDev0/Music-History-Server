@@ -10,4 +10,5 @@ export interface Entry {
   date: string;
   music: string;
   time: string;
+  sessionId: string;
 }
