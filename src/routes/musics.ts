@@ -71,7 +71,7 @@ export async function musicsRoutes(server: FastifyInstance) {
   
   server.get('/:id', async (req, res) => {
     const routParams = zod.object({
-      id: zod.string(),
+      id: zod.string().uuid(),
     });
     
     const { id } = routParams.parse(req.params);
