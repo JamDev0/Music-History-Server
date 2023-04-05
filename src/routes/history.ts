@@ -63,11 +63,11 @@ export async function historyRoutes(server: FastifyInstance) {
   });
   
   server.get('/:id', async (req, res) => {
-    const { id } = req.params;
-  
-    if(!id) {
-      return res.code(400).send('Id not provided');
-    }
+    const routParams = zod.object({
+      id: zod.string().uuid(),
+    });
+    
+    const { id } = routParams.parse(req.params);
   
     const entry = await knex('musics').where('id', id);
   
