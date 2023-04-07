@@ -1,101 +1,104 @@
 import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import zod from 'zod';
+import { checkIfSessionIdExists } from '../pre-handlers/check-session-id-exist';
 import { knex } from '../services/database';
 import { filterArrayBySearchParams } from '../utils/filterArrayBySearchParams';
 import { sort } from '../utils/sort';
-
-interface querySearchParams {
-  sort_by?: string;
-  order?: 'DESC' | 'ASC';
-}
-
-const sessionIdSchema = zod.string().uuid();
 
 export async function historyRoutes(server: FastifyInstance) {
   server.post('/', async (req, res) => {
     const historyBodySchema = zod.object({
       date: zod.string(),
-      music: zod.string(),
       time: zod.object({ from: zod.number(), to: zod.number() })
     });
 
     const body = historyBodySchema.parse(req.body);
 
-    let sessionId = req.cookies['music-history.sessionId'];
+    let session_id = req.cookies['music-history.session_id'];
 
-    if(!sessionId) {
-      sessionId = randomUUID();
+    if(!session_id) {
+      session_id = randomUUID();
 
-      res.cookie('music-history.sessionId', sessionId, {
+      res.cookie('music-history.session_id', session_id, {
         maxAge: 1000 * 60 * 60 * 7, // 7 days
         path: '/'
       });
     }
   
-    const newMusicId = await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([]), sessionId}).first();
+    const newEntryId = await knex('history').returning('id').insert({...body, id: randomUUID(), session_id});
   
-    if(newMusicId) {
-      return res.status(200).send(newMusicId);
+    if(newEntryId) {
+      return res.status(200).send(newEntryId);
     }
   
     return res.status(400).send('Error on inserting music');
   });
   
-  server.get('/', async (req, res) => {
-    const sessionId = sessionIdSchema.parse(req.cookies['music-history.sessionId']);
+  server.get(
+    '/', 
+    {
+      preHandler: [checkIfSessionIdExists]
+    },
+    async (req, res) => {
+      const session_id = req.cookies['music-history.session_id'];
 
-    const history = await knex('history').where('sessionId', sessionId);
-  
-    const queryKeys = Object.keys(req.query as object);
-  
-    if(queryKeys.length > 0) {
-      const queriesSchema = zod.object({
-        date: zod.string().nullish(),
-        music: zod.string().nullish(),
-        order: zod.enum(['ASC', 'DESC']).nullish(),
-        play_time_lower_than: zod.number().nullish(),
-        play_time_higher_than: zod.number().nullish(),
-        sort_by: zod.enum(['date', 'music', 'play_time']).nullish()
-      });
+      if(!session_id) {
+        return res.status(401).send({ message: 'Unauthorized request' });
+      }
 
-      const query = queriesSchema.parse(req.query);
+      const history = await knex('history').where('session_Id', session_id);
   
-      const filteredHistory = filterArrayBySearchParams(history, query);
+      const queryKeys = Object.keys(req.query as object);
   
-      const { sort_by, order } = query;
+      if(queryKeys.length > 0) {
+        const queriesSchema = zod.object({
+          date: zod.string().nullish(),
+          music: zod.string().nullish(),
+          order: zod.enum(['ASC', 'DESC']).nullish(),
+          play_time_lower_than: zod.number().nullish(),
+          play_time_higher_than: zod.number().nullish(),
+          sort_by: zod.enum(['date', 'music', 'play_time']).nullish()
+        });
+
+        const query = queriesSchema.parse(req.query);
+  
+        const filteredHistory = filterArrayBySearchParams(history, query);
+  
+        const { sort_by, order } = query;
       
-      if(sort_by) {
-        const sortedHistory = sort(filteredHistory, sort_by, order ?? 'ASC');
+        if(sort_by) {
+          const sortedHistory = sort(filteredHistory, sort_by, order ?? 'ASC');
   
-        return sortedHistory;
+          return sortedHistory;
+        }
+  
+        return filteredHistory;
       }
   
-      return filteredHistory;
-    }
-  
-    return history;
-  });
-  
-  server.get('/:id', async (req, res) => {
-    const sessionId = sessionIdSchema.parse(req.cookies['music-history.sessionId']);
-
-    const routParams = zod.object({
-      id: zod.string().uuid(),
+      return history;
     });
+  
+  server.get(
+    '/:id',
+    {
+      preHandler: [checkIfSessionIdExists]
+    }, 
+    async (req, res) => {
+      const session_id = req.cookies['music-history.session_id'];
+
+      const routParams = zod.object({
+        id: zod.string().uuid(),
+      });
     
-    const { id } = routParams.parse(req.params);
+      const { id } = routParams.parse(req.params);
   
-    const entry = await knex('musics').where({id, sessionId}).first();
+      const entry = await knex('musics').where({id, session_id}).first();
   
-    if(Object.keys(entry).length === 0) {
-      return res.code(400).send(`No entry found with id: ${id}`);
-    }
+      if(Object.keys(entry).length === 0) {
+        return res.code(400).send(`No entry found with id: ${id}`);
+      }
   
-    return entry;  
-  });
-  
-  server.delete('/:id', (req, res) => {
-  
-  });
+      return entry;  
+    }); 
 }
