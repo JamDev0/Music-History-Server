@@ -1,5 +1,6 @@
+import { execSync } from 'node:child_process';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import { app } from '../app';
 
 describe('Musics routes', () => {
@@ -10,6 +11,12 @@ describe('Musics routes', () => {
   afterAll(async () => {
     await app.close();
   });
+
+  beforeEach(() => {
+    execSync('npm run knex migrate:rollback --all');
+    execSync('npm run knex migrate:latest');
+  });
+
   it('should be able to create new music and receive new musics id', async () => {
     const response = await request(app.server)
       .post('/musics')
