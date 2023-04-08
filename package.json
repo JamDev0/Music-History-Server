@@ -5,11 +5,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx ./src/server.ts",
     "dev:watch": "tsx --watch ./src/server.ts",
     "lint": "eslint src --ext .ts --fix",
-    "knex": "node --no-warnings --loader tsx  ./node_modules/knex/bin/cli.js  --knexfile ./knexfile.ts"
+    "knex": "node --no-warnings --loader tsx  ./node_modules/knex/bin/cli.js  --knexfile ./knexfile.ts",
+    "test": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -25,8 +25,11 @@
   },
   "devDependencies": {
     "@types/node": "^18.15.10",
+    "@types/supertest": "^2.0.12",
     "@typescript-eslint/eslint-plugin": "^5.57.0",
+    "supertest": "^6.3.3",
     "tsx": "^3.12.6",
-    "typescript": "^5.0.2"
+    "typescript": "^5.0.2",
+    "vitest": "^0.29.8"
   }
 }
