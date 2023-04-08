@@ -9,6 +9,10 @@ export interface Music {
 export interface Entry {
   date: string;
   music: string;
-  time: string;
-  sessionId: string;
+  time: {
+    from: number;
+    to: number;
+  }
+  id: string;
+  session_id: string;
 }
