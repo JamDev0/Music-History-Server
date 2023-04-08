@@ -21,10 +21,10 @@ export async function musicsRoutes(server: FastifyInstance) {
 
     const body = createMusicBodySchema.parse(req.body);
   
-    const newMusicId = await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])} as Music).first();
+    const newMusicId = (await knex('musics').returning('id').insert({...body, id: randomUUID(), reproductions: JSON.stringify([])} as Music))[0];
   
     if(newMusicId) {
-      return res.status(200).send(newMusicId);
+      return res.status(201).send(newMusicId);
     }
   
     return res.status(400).send('Error on inserting music');
@@ -76,27 +76,29 @@ export async function musicsRoutes(server: FastifyInstance) {
     
     const { id } = routParams.parse(req.params);
   
-    const music = await knex('musics').where('id', id);
+    const music = await knex('musics').where('id', id).first();
   
-    if(music.length === 0) {
-      return res.code(400).send(`No music found with id: ${id}`);
+    if(!music || Object.keys(music).length === 0) {
+      return res.code(404).send(`No music found with id: ${id}`);
     }
   
     return music;
   });
   
-  server.delete('/:id', (req, res) => {
+  server.delete('/:id', async (req, res) => {
     const routParams = zod.object({
       id: zod.string(),
     });
     
     const { id } = routParams.parse(req.params);
   
-    const idk = knex('musics').where('id', id).delete();
+    const deleteQuantity = await knex('musics').where('id', id).delete();
     
-    console.log({idk});
+    if(deleteQuantity === 0) {
+      return res.code(404).send(`No music found to delete with id: ${id}`);
+    }
   
-    return;
+    return deleteQuantity;
   });
   
   server.get('/:id/plays', async (req, res) => {
@@ -108,7 +110,7 @@ export async function musicsRoutes(server: FastifyInstance) {
   
     const music = await knex('musics').where('id', id).first();
   
-    if(Object.keys(music).length === 0) {
+    if(!music || Object.keys(music).length === 0) {
       return res.code(400).send(`No music found with id: ${id}`);
     }
   
