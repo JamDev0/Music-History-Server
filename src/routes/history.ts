@@ -95,7 +95,7 @@ export async function historyRoutes(server: FastifyInstance) {
   
       const entry = await knex('history').where({ id, session_id }).first();
   
-      if(entry && Object.keys(entry).length === 0) {
+      if(!entry || Object.keys(entry).length === 0) {
         return res.code(400).send(`No entry found with id: ${id}`);
       }
   
