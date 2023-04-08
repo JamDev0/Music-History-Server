@@ -10,7 +10,8 @@ export async function historyRoutes(server: FastifyInstance) {
   server.post('/', async (req, res) => {
     const historyBodySchema = zod.object({
       date: zod.string(),
-      time: zod.object({ from: zod.number(), to: zod.number() })
+      time: zod.object({ from: zod.number(), to: zod.number() }),
+      music: zod.string().uuid(),
     });
 
     const body = historyBodySchema.parse(req.body);
@@ -26,10 +27,10 @@ export async function historyRoutes(server: FastifyInstance) {
       });
     }
   
-    const newEntryId = await knex('history').returning('id').insert({...body, id: randomUUID(), session_id});
+    const newEntryId = (await knex('history').returning('id').insert({...body, id: randomUUID(), session_id}))[0];
   
     if(newEntryId) {
-      return res.status(200).send(newEntryId);
+      return res.status(201).send(newEntryId);
     }
   
     return res.status(400).send('Error on inserting music');
