@@ -15,7 +15,7 @@ export async function historyRoutes(server: FastifyInstance) {
 
     const body = historyBodySchema.parse(req.body);
 
-    let session_id = req.cookies['music-history.session_id'];
+    let session_id = req.cookies['music-history.session_id'] as string;
 
     if(!session_id) {
       session_id = randomUUID();
@@ -93,9 +93,9 @@ export async function historyRoutes(server: FastifyInstance) {
     
       const { id } = routParams.parse(req.params);
   
-      const entry = await knex('musics').where({id, session_id}).first();
+      const entry = await knex('history').where({ id, session_id }).first();
   
-      if(Object.keys(entry).length === 0) {
+      if(entry && Object.keys(entry).length === 0) {
         return res.code(400).send(`No entry found with id: ${id}`);
       }
   
