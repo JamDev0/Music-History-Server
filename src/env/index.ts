@@ -11,6 +11,7 @@ if(process.env.NODE_ENV === 'test') {
 const envSchema = zod.object({
   DATABASE_URL: zod.string(),
   SERVER_PORT: zod.coerce.number().default(3333),
+  DATABASE_CLIENT: zod.enum(['sqlite', 'pg']),
   NODE_ENV: zod.enum(['development', 'production', 'test']).default('production'),
 });
 
